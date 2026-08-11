@@ -1835,6 +1835,9 @@
 
     .nav-overlay.show { opacity: 1; visibility: visible; }
   </style>
+
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -2426,32 +2429,32 @@
 
         <div class="glass-card" style="padding: 2.5rem;" data-aos="fade-left">
           <h3 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 1.5rem;">Send a Message</h3>
-          <form class="contact-form" id="contactForm">
+          <form class="contact-form" id="contactForm" novalidate>
             <div class="form-row">
               <div class="form-group">
                 <label for="fname">First Name</label>
-                <input type="text" id="fname" placeholder="John" required />
+                <input type="text" id="fname" name="from_firstname" placeholder="John" required />
               </div>
               <div class="form-group">
                 <label for="lname">Last Name</label>
-                <input type="text" id="lname" placeholder="Doe" required />
+                <input type="text" id="lname" name="from_lastname" placeholder="Doe" required />
               </div>
             </div>
             <div class="form-group">
               <label for="email">Email Address</label>
-              <input type="email" id="email" placeholder="john@example.com" required />
+              <input type="email" id="email" name="from_email" placeholder="john@example.com" required />
             </div>
             <div class="form-group">
               <label for="subject">Subject</label>
-              <input type="text" id="subject" placeholder="Project Inquiry / Collaboration" required />
+              <input type="text" id="subject" name="subject" placeholder="Project Inquiry / Collaboration" required />
             </div>
             <div class="form-group">
               <label for="message">Message</label>
-              <textarea id="message" placeholder="Tell me about your project or opportunity..." required></textarea>
+              <textarea id="message" name="message" placeholder="Tell me about your project or opportunity..." required></textarea>
             </div>
-            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; border: none; font-family: var(--font-main);">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-              Send Message
+            <button type="submit" id="submitBtn" class="btn-primary" style="width: 100%; justify-content: center; border: none; font-family: var(--font-main);">
+              <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+              <span id="btnText">Send Message</span>
             </button>
           </form>
         </div>
@@ -2683,19 +2686,91 @@
     if (skillBarsSection) skillBarsObserver.observe(skillBarsSection.closest('.glass-card'));
 
     // ============================================
-    // CONTACT FORM
+    // EMAILJS SETUP
+    // ─────────────────────────────────────────────
+    // Step 1: Go to https://www.emailjs.com/ → Sign up (Free)
+    // Step 2: Add Email Service (Gmail) → Copy SERVICE ID
+    // Step 3: Create Email Template → Copy TEMPLATE ID
+    //         Template variables to use:
+    //           {{from_firstname}}, {{from_lastname}}
+    //           {{from_email}}, {{subject}}, {{message}}
+    //           {{to_name}} = Parasharam Sawant
+    // Step 4: Go to Account → API Keys → Copy PUBLIC KEY
+    // Step 5: Replace the 3 values below ↓
+    // ============================================
+    const EMAILJS_PUBLIC_KEY  = 'dqvfa2-nbB_gXFLbL';
+    const EMAILJS_SERVICE_ID  = 'service_poe0d8a';
+    const EMAILJS_TEMPLATE_ID = 'template_8wct5pd';
+
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+    // ============================================
+    // CONTACT FORM — Real Email Send
     // ============================================
     document.getElementById('contactForm').addEventListener('submit', function(e) {
       e.preventDefault();
-      const btn = this.querySelector('button[type="submit"]');
-      btn.textContent = 'Sending...';
-      btn.disabled = true;
-      setTimeout(() => {
-        btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg> Send Message`;
-        btn.disabled = false;
-        this.reset();
-        showToast('✅ Message sent successfully! I will get back to you soon.');
-      }, 1500);
+
+      const btn      = document.getElementById('submitBtn');
+      const btnText  = document.getElementById('btnText');
+      const sendIcon = document.getElementById('sendIcon');
+
+      // Validate
+      const fname   = document.getElementById('fname').value.trim();
+      const lname   = document.getElementById('lname').value.trim();
+      const email   = document.getElementById('email').value.trim();
+      const subject = document.getElementById('subject').value.trim();
+      const message = document.getElementById('message').value.trim();
+
+      if (!fname || !lname || !email || !subject || !message) {
+        showToast('⚠️ Please fill all fields before sending.');
+        return;
+      }
+
+      // Loading state
+      btn.disabled    = true;
+      sendIcon.innerHTML = '<animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>';
+      btnText.textContent = 'Sending...';
+      btn.style.opacity   = '0.8';
+
+      const templateParams = {
+        from_firstname: fname,
+        from_lastname:  lname,
+        from_email:     email,
+        subject:        subject,
+        message:        message,
+        to_name:        'Parasharam Sawant',
+        reply_to:       email,
+      };
+
+      // Check if keys are configured
+      if (EMAILJS_PUBLIC_KEY === 'YOUR_PUBLIC_KEY') {
+        // Demo mode – simulate success
+        setTimeout(() => {
+          resetBtn();
+          this.reset();
+          showToast('✅ [Demo] Message received! Configure EmailJS to send real emails.');
+        }, 1500);
+        return;
+      }
+
+      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+        .then(() => {
+          resetBtn();
+          this.reset();
+          showToast('✅ Message sent! I will get back to you soon. 🎉');
+        })
+        .catch((err) => {
+          console.error('EmailJS error:', err);
+          resetBtn();
+          showToast('❌ Failed to send. Please email directly: pmsavant93@gmail.com');
+        });
+
+      function resetBtn() {
+        btn.disabled        = false;
+        btn.style.opacity   = '1';
+        btnText.textContent = 'Send Message';
+        sendIcon.innerHTML  = '<path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>';
+      }
     });
 
     function showToast(msg) {
